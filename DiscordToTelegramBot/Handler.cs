@@ -68,6 +68,33 @@ public class Handler
                 }
             }
 
+            if (message.Document is not null)
+            {
+                var memoryStream = new MemoryStream();
+                var file = await client.GetInfoAndDownloadFileAsync(message.Document.FileId, memoryStream);
+
+                memoryStream.Seek(0, SeekOrigin.Begin);
+
+                messageBuilder.WithFile(Path.GetFileName(file.FilePath), memoryStream, false);
+
+                if (message.CaptionEntities is not null)
+                {
+                    var messageEntity = message.Entities.FirstOrDefault();
+                    if (messageEntity!.Type == MessageEntityType.TextLink)
+                    {
+                        messageBuilder.Content += $"\nURL: {messageEntity.Url}";
+                    }
+                }
+            }
+
+            if (message.Poll is not null)
+            {
+                var poll = message.Poll;
+
+                messageBuilder.WithContent($"Poll:\nOptions: {String.Join("\n", poll.Options.Select(a => a.Text))}");
+                messageBuilder.AddComponents(new DiscordLinkButtonComponent($"https://t.me/c/{message.Chat.Id}/{message.MessageId}", "Проголосовать", false, new DiscordComponentEmoji("✈️")));
+            }
+
             if (!string.IsNullOrEmpty(update!.ChannelPost!.AuthorSignature))
                 messageBuilder.WithContent($"{messageBuilder.Content}\n\nПост от **{update!.ChannelPost!.AuthorSignature}**");
 
