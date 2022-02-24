@@ -68,10 +68,10 @@ public class Handler
                 }
             }
 
-            if (message.Document is not null)
+            if (message.Video is not null)
             {
                 var memoryStream = new MemoryStream();
-                var file = await client.GetInfoAndDownloadFileAsync(message.Document.FileId, memoryStream);
+                var file = await client.GetInfoAndDownloadFileAsync(message.Video.FileId, memoryStream);
 
                 memoryStream.Seek(0, SeekOrigin.Begin);
 
@@ -98,15 +98,17 @@ public class Handler
             if (!string.IsNullOrEmpty(update!.ChannelPost!.AuthorSignature))
                 messageBuilder.WithContent($"{messageBuilder.Content}\n\nПост от **{update!.ChannelPost!.AuthorSignature}**");
 
+            if (message.ForwardFromChat is not null)
+            {
+                messageBuilder.AddComponents(new DiscordLinkButtonComponent($"https://t.me/{message.ForwardFromChat.Username}/{message.ForwardFromMessageId}", "Источник", false, new DiscordComponentEmoji("✈️")));
+            }
+
 
             var channel = await DiscordClient.GetChannelAsync(ulong.Parse(Environment.GetEnvironmentVariable("POST_CHANNEL_ID")!));
 
             var discordMessage = await channel.SendMessageAsync(messageBuilder);
 
-            if (message.ForwardFromChat is not null)
-            {
-                messageBuilder.AddComponents(new DiscordLinkButtonComponent($"https://t.me/c/{message.ForwardFromChat.Id}/{message.ForwardFromMessageId}", "Источник", false, new DiscordComponentEmoji("✈️")));
-            }
+
 
             await discordMessage.CreateThreadAsync("Обсуждение", AutoArchiveDuration.Hour, "Auto-post creation....");
 
