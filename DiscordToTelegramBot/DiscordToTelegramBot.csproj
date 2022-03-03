@@ -13,6 +13,13 @@
 
     <ItemGroup>
       <PackageReference Include="DSharpPlus" Version="4.2.0-nightly-01072" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.2" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.2">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.2" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
       <PackageReference Include="Telegram.Bot" Version="18.0.0-alpha.1" />
       <PackageReference Include="Telegram.Bot.Extensions.Polling" Version="2.0.0-alpha.1" />
     </ItemGroup>
