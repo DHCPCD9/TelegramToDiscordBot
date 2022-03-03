@@ -78,7 +78,7 @@ public class Handler : IHandler, IServiceScope
 
             var messageBuilder = new DiscordMessageBuilder();
 
-            if (!string.IsNullOrEmpty(message!.Text))
+            if (message.Text is not null)
             {
                 messageBuilder.WithContent(message.Text);
 
@@ -92,6 +92,18 @@ public class Handler : IHandler, IServiceScope
                 }
             }
 
+
+            if (message.NewChatPhoto is not null)
+            {
+                messageBuilder.WithContent("Аватар канала был изменен.");
+
+                var stream = new MemoryStream();
+
+
+                var file = await client.GetInfoAndDownloadFileAsync(message.NewChatPhoto.Last().FileId, stream, token);
+                stream.Seek(0, SeekOrigin.Begin);
+                messageBuilder.WithFile(Path.GetFileName(file.FilePath), stream);
+            }
             if (message.Photo is not null)
             {
                 var photo = message.Photo.Last();
