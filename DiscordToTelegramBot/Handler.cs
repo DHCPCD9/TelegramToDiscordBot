@@ -6,6 +6,7 @@ using DSharpPlus.EventArgs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SixLabors.ImageSharp;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
@@ -138,8 +139,12 @@ public class Handler : IHandler, IServiceScope
 
                 memoryStream.Seek(0, SeekOrigin.Begin);
 
-                messageBuilder.WithFile(Path.GetFileName(file.FilePath), memoryStream, false);
-
+                if (memoryStream.Length < 1024 * 8)
+                {
+                    messageBuilder.WithFile(Path.GetFileName(file.FilePath), memoryStream, false);
+                } 
+                
+                
                 if (message.CaptionEntities is not null)
                 {
 
@@ -176,6 +181,26 @@ public class Handler : IHandler, IServiceScope
                 {
                     messageBuilder.AddComponents(new DiscordLinkButtonComponent($"https://t.me/c/{message.ForwardFromChat.Id}/{message.ForwardFromMessageId}", "Источник (приватный)", false, new DiscordComponentEmoji("✈️")));
                 }
+
+                messageBuilder.WithContent($"Переслано с канала {message.ForwardFromChat.Title}\n" + messageBuilder.Content);
+            }
+
+            if (message.Sticker is not null)
+            {
+                var sticker = message.Sticker;
+                var stream = new MemoryStream();
+
+                var file = await client.GetInfoAndDownloadFileAsync(sticker.FileId, stream);
+                stream.Seek(0, SeekOrigin.Begin);
+
+                var pngStream = new MemoryStream();
+                using (var image = Image.Load(stream))
+                {
+                    image.SaveAsPng(pngStream);
+                }
+
+                pngStream.Seek(0, SeekOrigin.Begin);
+                
             }
 
 
@@ -250,11 +275,30 @@ public class Handler : IHandler, IServiceScope
 
         if (update.Type == UpdateType.Message)
         {
+            
             var message = update.Message;
 
+
+
+            if (message.ForwardFromChat is not null)
+            {
+                var dbMessage = await context.Messages.FirstAsync(m => m.TelegramId == message.ForwardFromMessageId, token);
+
+                if (dbMessage.MessageIdInChat == 0)
+                {
+                    dbMessage.MessageIdInChat = message.MessageId;
+
+                    await context.SaveChangesAsync(token);     
+                }
+
+                await context.SaveChangesAsync(token);
+            }
+            
             
             if (message.ReplyToMessage is null)
                 return;
+            
+            
 
             var chat = await client.GetChatAsync(message.ReplyToMessage.Chat.Id, token);
             
@@ -263,12 +307,7 @@ public class Handler : IHandler, IServiceScope
             if (messageInDb is null)
                 return;
 
-            if (messageInDb.MessageIdInChat == 0)
-            {
-                messageInDb.MessageIdInChat = message.MessageId;
 
-                await context.SaveChangesAsync(token);     
-            }
             var channel = await DiscordClient.GetChannelAsync(messageInDb.DiscordChannelId);
 
             var discordMessage = await channel.GetMessageAsync(messageInDb.DiscordId);
