@@ -282,9 +282,9 @@ public class Handler : IHandler, IServiceScope
 
             if (message.ForwardFromChat is not null)
             {
-                var dbMessage = await context.Messages.FirstAsync(m => m.TelegramId == message.ForwardFromMessageId, token);
+                var dbMessage = await context.Messages.FirstOrDefaultAsync(m => m.TelegramId == message.ForwardFromMessageId, token);
 
-                if (dbMessage.MessageIdInChat == 0)
+                if (dbMessage is null)
                 {
                     dbMessage.MessageIdInChat = message.MessageId;
 
