@@ -2,11 +2,9 @@ name: Docker
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
-  pull_request:
-    branches: [ master ]
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -60,6 +58,6 @@ jobs:
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
-          file: Dockerfile
+          file: DiscordToTelegramBot/Dockerfile
           push: true
           tags: ghcr.io/lukumiya/telegram-to-discord-bot:master
