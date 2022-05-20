@@ -17,7 +17,6 @@ namespace DiscordToTelegramBot;
 
 public class Handler : IHandler, IServiceScope
 {
-
     public Dictionary<int, DiscordMessage> MessageCache { get; set; } = new Dictionary<int, DiscordMessage>();
     public DiscordClient DiscordClient { get; set; } = null!;
 
@@ -27,7 +26,7 @@ public class Handler : IHandler, IServiceScope
     {
         await HandleUpdateAsync(client, update, token);
     }
-    
+
     private IServiceScope _services { get; }
 
     public Handler(IServiceProvider services)
@@ -46,32 +45,34 @@ public class Handler : IHandler, IServiceScope
     public async Task HandleDiscordMessage(DiscordClient sender, MessageCreateEventArgs args)
     {
         var message = args.Message;
-        
-        if (message.Channel.Type != ChannelType.PublicThread && message.Channel.Type != ChannelType.PrivateThread && message.Channel.Type != ChannelType.NewsThread)
+
+        if (message.Channel.Type != ChannelType.PublicThread && message.Channel.Type != ChannelType.PrivateThread &&
+            message.Channel.Type != ChannelType.NewsThread)
             return;
-        
+
         if (message.Author.IsBot)
             return;
-        
-        
+
+
         var thread = args.Guild.Threads.FirstOrDefault(t => t.Key == message.Channel.Id).Value;
 
         var context = GetContext();
 
         var messageInDb = await context.Messages.FirstOrDefaultAsync(m => m.ThreadId == thread.Id);
-        
+
         if (messageInDb is null)
             return;
-        
+
         var channel = await TelegramBotClient.GetChatAsync(messageInDb.TelegramChannelId);
         var chat = await TelegramBotClient.GetChatAsync(channel.LinkedChatId!);
 
-        await TelegramBotClient.SendTextMessageAsync(chat.Id, $"[Discord]{message.Author.Username}\n\n{message.Content}",
+        await TelegramBotClient.SendTextMessageAsync(chat.Id,
+            $"[Discord]{message.Author.Username}\n\n{message.Content}",
             replyToMessageId: messageInDb.MessageIdInChat);
     }
+
     public async Task HandleUpdateAsync(ITelegramBotClient client, Update update, CancellationToken token)
     {
-
         var context = GetContext();
         if (update.Type == UpdateType.ChannelPost)
         {
@@ -96,7 +97,7 @@ public class Handler : IHandler, IServiceScope
 
             if (message.NewChatPhoto is not null)
             {
-                messageBuilder.WithContent("Аватар канала был изменен.");
+                messageBuilder.WithContent("Channel icon updated.");
 
                 var stream = new MemoryStream();
 
@@ -105,6 +106,7 @@ public class Handler : IHandler, IServiceScope
                 stream.Seek(0, SeekOrigin.Begin);
                 messageBuilder.WithFile(Path.GetFileName(file.FilePath), stream);
             }
+
             if (message.Photo is not null)
             {
                 var photo = message.Photo.Last();
@@ -142,19 +144,21 @@ public class Handler : IHandler, IServiceScope
                 if (memoryStream.Length < 1024 * 8)
                 {
                     messageBuilder.WithFile(Path.GetFileName(file.FilePath), memoryStream, false);
-                } 
-                
-                
+                }
+
+
                 if (message.CaptionEntities is not null)
                 {
-
-                    foreach(var entity in message.Entities) {
-                        if (entity.Type == MessageEntityType.TextLink)
+                    if (message.Entities is not null)
+                    {
+                        foreach (var entity in message.Entities)
                         {
-                            messageBuilder.Content += $"\nURL: {entity.Url}";
+                            if (entity.Type == MessageEntityType.TextLink)
+                            {
+                                messageBuilder.Content += $"\nURL: {entity.Url}";
+                            }
                         }
                     }
-        
                 }
             }
 
@@ -163,26 +167,33 @@ public class Handler : IHandler, IServiceScope
                 var poll = message.Poll;
 
                 messageBuilder.WithContent($"Poll:\nOptions: {String.Join("\n", poll.Options.Select(a => a.Text))}");
-                messageBuilder.AddComponents(new DiscordLinkButtonComponent($"https://t.me/c/{message.Chat.Id}/{message.MessageId}", "Проголосовать", false, new DiscordComponentEmoji("✈️")));
+                messageBuilder.AddComponents(new DiscordLinkButtonComponent(
+                    $"https://t.me/c/{message.Chat.Id}/{message.MessageId}", "Vote", false,
+                    new DiscordComponentEmoji("✈️")));
             }
 
             if (!string.IsNullOrEmpty(update!.ChannelPost!.AuthorSignature))
-                messageBuilder.WithContent($"{messageBuilder.Content}\n\nПост от **{update!.ChannelPost!.AuthorSignature}**");
-            
-            
+                messageBuilder.WithContent(
+                    $"{messageBuilder.Content}\n\nPost from **{update!.ChannelPost!.AuthorSignature}**");
+
+
             if (message.ForwardFromChat is not null)
             {
-
                 if (message.ForwardFromChat.Username is not null)
                 {
-                    messageBuilder.AddComponents(new DiscordLinkButtonComponent($"https://t.me/{message.ForwardFromChat.Username}/{message.ForwardFromMessageId}", "Источник", false, new DiscordComponentEmoji("✈️")));
+                    messageBuilder.AddComponents(new DiscordLinkButtonComponent(
+                        $"https://t.me/{message.ForwardFromChat.Username}/{message.ForwardFromMessageId}", "Источник",
+                        false, new DiscordComponentEmoji("✈️")));
                 }
                 else
                 {
-                    messageBuilder.AddComponents(new DiscordLinkButtonComponent($"https://t.me/c/{message.ForwardFromChat.Id}/{message.ForwardFromMessageId}", "Источник (приватный)", false, new DiscordComponentEmoji("✈️")));
+                    messageBuilder.AddComponents(new DiscordLinkButtonComponent(
+                        $"https://t.me/c/{message.ForwardFromChat.Id}/{message.ForwardFromMessageId}",
+                        "Источник (приватный)", false, new DiscordComponentEmoji("✈️")));
                 }
 
-                messageBuilder.WithContent($"Переслано с канала {message.ForwardFromChat.Title}\n" + messageBuilder.Content);
+                messageBuilder.WithContent($"Переслано с канала {message.ForwardFromChat.Title}\n" +
+                                           messageBuilder.Content);
             }
 
             if (message.Sticker is not null)
@@ -200,17 +211,19 @@ public class Handler : IHandler, IServiceScope
                 }
 
                 pngStream.Seek(0, SeekOrigin.Begin);
-                
             }
 
 
-            var channel = await DiscordClient.GetChannelAsync(ulong.Parse(Environment.GetEnvironmentVariable("POST_CHANNEL_ID")!));
+            var channel =
+                await DiscordClient.GetChannelAsync(
+                    ulong.Parse(Environment.GetEnvironmentVariable("POST_CHANNEL_ID")!));
 
             var discordMessage = await channel.SendMessageAsync(messageBuilder);
 
 
-
-            var thread = await discordMessage.CreateThreadAsync("Обсуждение", AutoArchiveDuration.Hour, "Auto-post creation....");
+            var thread =
+                await discordMessage.CreateThreadAsync("Discussion", AutoArchiveDuration.Hour,
+                    "Auto-post creation....");
 
             await context.AddAsync(new DatabaseMessages
             {
@@ -220,8 +233,9 @@ public class Handler : IHandler, IServiceScope
                 TelegramChannelId = message.Chat.Id,
                 ThreadId = thread.Id
             });
-            
-            DiscordClient.Logger.Log(LogLevel.Information, new EventId(999, "Telegram"), "Processed message: {Message}", message.MessageId);
+
+            DiscordClient.Logger.Log(LogLevel.Information, new EventId(999, "Telegram"), "Processed message: {Message}",
+                message.MessageId);
             await context.SaveChangesAsync();
         }
 
@@ -230,20 +244,21 @@ public class Handler : IHandler, IServiceScope
             var post = update.EditedChannelPost;
 
 
-            var messageInDatabase = await context.Messages.FirstOrDefaultAsync(m => m.TelegramId == post!.MessageId, cancellationToken: token);
+            var messageInDatabase =
+                await context.Messages.FirstOrDefaultAsync(m => m.TelegramId == post!.MessageId,
+                    cancellationToken: token);
             if (messageInDatabase is null)
                 return;
 
             var channel = await DiscordClient.GetChannelAsync(messageInDatabase.DiscordChannelId);
 
             var message = await channel.GetMessageAsync(messageInDatabase.DiscordId);
-            
+
             var messageBuilder = new DiscordMessageBuilder();
 
 
             if (!string.IsNullOrEmpty(post!.Text))
             {
-
                 if (post.Entities is not null)
                 {
                     var messageEntity = post!.Entities!.First();
@@ -252,12 +267,13 @@ public class Handler : IHandler, IServiceScope
                         messageBuilder.Content += $"\nURL: {messageEntity.Url}";
                     }
                 }
-                messageBuilder.WithContent($"{post.Text}\n\nПост от **{post!.AuthorSignature}**");
+
+                messageBuilder.WithContent($"{post.Text}\n\nPost from **{post!.AuthorSignature}**");
             }
 
             if (!string.IsNullOrEmpty(post.Caption))
             {
-                messageBuilder.WithContent($"{post.Caption}\n\nПост от **{post!.AuthorSignature}**");
+                messageBuilder.WithContent($"{post.Caption}\n\nPost from **{post!.AuthorSignature}**");
                 if (post.CaptionEntities is not null)
                 {
                     var messageEntity = post!.CaptionEntities!.First();
@@ -266,44 +282,44 @@ public class Handler : IHandler, IServiceScope
                         messageBuilder.Content += $"\nURL: {messageEntity.Url}";
                     }
                 }
-                
-                
+
+
                 await message.ModifyAsync(messageBuilder);
             }
-
         }
 
         if (update.Type == UpdateType.Message)
         {
-            
             var message = update.Message;
-
 
 
             if (message.ForwardFromChat is not null)
             {
-                var dbMessage = await context.Messages.FirstOrDefaultAsync(m => m.TelegramId == message.ForwardFromMessageId, token);
+                var dbMessage =
+                    await context.Messages.FirstOrDefaultAsync(m => m.TelegramId == message.ForwardFromMessageId,
+                        token);
 
                 if (dbMessage is not null)
                 {
                     dbMessage.MessageIdInChat = message.MessageId;
 
-                    await context.SaveChangesAsync(token);     
+                    await context.SaveChangesAsync(token);
                 }
 
                 await context.SaveChangesAsync(token);
             }
-            
-            
+
+
             if (message.ReplyToMessage is null)
                 return;
-            
-            
+
 
             var chat = await client.GetChatAsync(message.ReplyToMessage.Chat.Id, token);
-            
-            var messageInDb = await context.Messages.FirstOrDefaultAsync(m => m.TelegramId == message.ReplyToMessage.ForwardFromMessageId, token);
-    
+
+            var messageInDb =
+                await context.Messages.FirstOrDefaultAsync(
+                    m => m.TelegramId == message.ReplyToMessage.ForwardFromMessageId, token);
+
             if (messageInDb is null)
                 return;
 
@@ -313,7 +329,7 @@ public class Handler : IHandler, IServiceScope
             var discordMessage = await channel.GetMessageAsync(messageInDb.DiscordId);
 
             var thread = channel.Guild.Threads.FirstOrDefault(t => t.Value.Id == messageInDb.ThreadId).Value;
-            
+
 
             var embed = new DiscordEmbedBuilder()
                 .WithAuthor(message.From.FirstName,
@@ -323,7 +339,9 @@ public class Handler : IHandler, IServiceScope
             if (message.Text is not null)
             {
                 embed.WithDescription(message.Text);
-            }else if (message.Caption is not null || message.Photo is not null || message.Audio is not null|| message.Video is not null || message.Voice is not null)
+            }
+            else if (message.Caption is not null || message.Photo is not null || message.Audio is not null ||
+                     message.Video is not null || message.Voice is not null)
             {
                 embed.WithDescription(message.Caption);
 
@@ -334,21 +352,21 @@ public class Handler : IHandler, IServiceScope
                     embed.WithImageUrl($"attachment://{Path.GetFileName(file.FilePath)}");
                     builder.WithFile(Path.GetFileName(file.FilePath), stream);
                 }
-                
+
                 if (message.Video is not null)
                 {
                     var stream = await GetFileStream(client, message.Video.FileId);
                     var file = await client.GetFileAsync(message.Video.FileId, token);
                     builder.WithFile(Path.GetFileName(file.FilePath), stream);
                 }
-                
+
                 if (message.Voice is not null)
                 {
                     var stream = await GetFileStream(client, message.Voice.FileId);
                     var file = await client.GetFileAsync(message.Voice.FileId, token);
                     builder.WithFile(Path.GetFileName(file.FilePath), stream);
                 }
-                
+
                 if (message.Audio is not null)
                 {
                     var stream = await GetFileStream(client, message.Audio.FileId);
@@ -359,7 +377,6 @@ public class Handler : IHandler, IServiceScope
 
             embed.WithColor(DiscordColor.Aquamarine);
             await thread.SendMessageAsync(builder.WithEmbed(embed));
-
         }
     }
 
@@ -387,5 +404,3 @@ public class Handler : IHandler, IServiceScope
 
     public IServiceProvider ServiceProvider { get; }
 }
-
-
