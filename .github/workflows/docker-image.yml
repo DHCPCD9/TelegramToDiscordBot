@@ -60,4 +60,4 @@ jobs:
           context: .
           file: DiscordToTelegramBot/Dockerfile
           push: true
-          tags: ghcr.io/lukumiya/telegram-to-discord-bot:master
+          tags: ghcr.io/dhcpcd9/telegram-to-discord-bot:master
