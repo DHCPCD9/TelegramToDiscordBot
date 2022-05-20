@@ -192,7 +192,7 @@ public class Handler : IHandler, IServiceScope
                         "Источник (приватный)", false, new DiscordComponentEmoji("✈️")));
                 }
 
-                messageBuilder.WithContent($"Переслано с канала {message.ForwardFromChat.Title}\n" +
+                messageBuilder.WithContent($"Forwarded from {message.ForwardFromChat.Title}\n" +
                                            messageBuilder.Content);
             }
 
