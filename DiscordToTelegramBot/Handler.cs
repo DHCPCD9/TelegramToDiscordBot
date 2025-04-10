@@ -42,12 +42,12 @@ public class Handler : IHandler, IServiceScope
         return scope.ServiceProvider.GetRequiredService<ApplicationContext>();
     }
 
-    public async Task HandleDiscordMessage(DiscordClient sender, MessageCreateEventArgs args)
+    public async Task HandleDiscordMessage(DiscordClient sender, MessageCreatedEventArgs args)
     {
         var message = args.Message;
 
-        if (message.Channel.Type != ChannelType.PublicThread && message.Channel.Type != ChannelType.PrivateThread &&
-            message.Channel.Type != ChannelType.NewsThread)
+        if (message.Channel.Type != DiscordChannelType.PublicThread && message.Channel.Type != DiscordChannelType.PrivateThread &&
+            message.Channel.Type != DiscordChannelType.NewsThread)
             return;
 
         if (message.Author.IsBot)
@@ -63,12 +63,15 @@ public class Handler : IHandler, IServiceScope
         if (messageInDb is null)
             return;
 
-        var channel = await TelegramBotClient.GetChatAsync(messageInDb.TelegramChannelId);
-        var chat = await TelegramBotClient.GetChatAsync(channel.LinkedChatId!);
+        var channel = await TelegramBotClient.GetChat(messageInDb.TelegramChannelId);
+        var chat = await TelegramBotClient.GetChat(channel.LinkedChatId!);
 
-        await TelegramBotClient.SendTextMessageAsync(chat.Id,
+        await TelegramBotClient.SendMessage(chat.Id,
             $"[Discord]{message.Author.Username}\n\n{message.Content}",
-            replyToMessageId: messageInDb.MessageIdInChat);
+            replyParameters: new ReplyParameters
+            {
+                MessageId = messageInDb.MessageIdInChat
+            });
     }
 
     public async Task HandleUpdateAsync(ITelegramBotClient client, Update update, CancellationToken token)
@@ -102,24 +105,24 @@ public class Handler : IHandler, IServiceScope
                 var stream = new MemoryStream();
 
 
-                var file = await client.GetInfoAndDownloadFileAsync(message.NewChatPhoto.Last().FileId, stream, token);
+                var file = await client.GetInfoAndDownloadFile(message.NewChatPhoto.Last().FileId, stream, token);
                 stream.Seek(0, SeekOrigin.Begin);
-                messageBuilder.WithFile(Path.GetFileName(file.FilePath), stream);
+                messageBuilder.AddFile(Path.GetFileName(file.FilePath), stream);
             }
 
             if (message.Photo is not null)
             {
                 var photo = message.Photo.Last();
 
-                var file = await client.GetFileAsync(photo.FileId);
+                var file = await client.GetFile(photo.FileId);
 
 
                 var memoryStream = new MemoryStream();
 
-                await client.DownloadFileAsync(file.FilePath, memoryStream, token);
+                await client.DownloadFile(file.FilePath, memoryStream, token);
                 memoryStream.Seek(0, SeekOrigin.Begin);
 
-                messageBuilder.WithFile(Path.GetFileName(file.FilePath), memoryStream, false);
+                messageBuilder.AddFile(Path.GetFileName(file.FilePath), memoryStream, false);
 
                 if (!string.IsNullOrEmpty(message.Caption))
                     messageBuilder.WithContent(message!.Caption);
@@ -137,13 +140,13 @@ public class Handler : IHandler, IServiceScope
             if (message.Video is not null)
             {
                 var memoryStream = new MemoryStream();
-                var file = await client.GetInfoAndDownloadFileAsync(message.Video.FileId, memoryStream);
+                var file = await client.GetInfoAndDownloadFile(message.Video.FileId, memoryStream);
 
                 memoryStream.Seek(0, SeekOrigin.Begin);
 
                 if (memoryStream.Length < 1024 * 8)
                 {
-                    messageBuilder.WithFile(Path.GetFileName(file.FilePath), memoryStream, false);
+                    messageBuilder.AddFile(Path.GetFileName(file.FilePath), memoryStream, false);
                 }
 
 
@@ -201,7 +204,7 @@ public class Handler : IHandler, IServiceScope
                 var sticker = message.Sticker;
                 var stream = new MemoryStream();
 
-                var file = await client.GetInfoAndDownloadFileAsync(sticker.FileId, stream);
+                var file = await client.GetInfoAndDownloadFile(sticker.FileId, stream);
                 stream.Seek(0, SeekOrigin.Begin);
 
                 var pngStream = new MemoryStream();
@@ -222,7 +225,7 @@ public class Handler : IHandler, IServiceScope
 
 
             var thread =
-                await discordMessage.CreateThreadAsync("Discussion", AutoArchiveDuration.Hour,
+                await discordMessage.CreateThreadAsync("Discussion", DiscordAutoArchiveDuration.Hour,
                     "Auto-post creation....");
 
             await context.AddAsync(new DatabaseMessages
@@ -314,7 +317,7 @@ public class Handler : IHandler, IServiceScope
                 return;
 
 
-            var chat = await client.GetChatAsync(message.ReplyToMessage.Chat.Id, token);
+            var chat = await client.GetChat(message.ReplyToMessage.Chat.Id, token);
 
             var messageInDb =
                 await context.Messages.FirstOrDefaultAsync(
@@ -348,35 +351,35 @@ public class Handler : IHandler, IServiceScope
                 if (message.Photo is not null)
                 {
                     var stream = await GetFileStream(client, message.Photo.Last().FileId);
-                    var file = await client.GetFileAsync(message.Photo.Last().FileId);
+                    var file = await client.GetFile(message.Photo.Last().FileId, cancellationToken: token);
                     embed.WithImageUrl($"attachment://{Path.GetFileName(file.FilePath)}");
-                    builder.WithFile(Path.GetFileName(file.FilePath), stream);
+                    builder.AddFile(Path.GetFileName(file.FilePath) ?? "photo.png", stream);
                 }
 
                 if (message.Video is not null)
                 {
                     var stream = await GetFileStream(client, message.Video.FileId);
-                    var file = await client.GetFileAsync(message.Video.FileId, token);
-                    builder.WithFile(Path.GetFileName(file.FilePath), stream);
+                    var file = await client.GetFile(message.Video.FileId, token);
+                    builder.AddFile(Path.GetFileName(file.FilePath) ?? "video.mp4", stream);
                 }
 
                 if (message.Voice is not null)
                 {
                     var stream = await GetFileStream(client, message.Voice.FileId);
-                    var file = await client.GetFileAsync(message.Voice.FileId, token);
-                    builder.WithFile(Path.GetFileName(file.FilePath), stream);
+                    var file = await client.GetFile(message.Voice.FileId, token);
+                    builder.AddFile(Path.GetFileName(file.FilePath) ?? "audio.mp3", stream);
                 }
 
                 if (message.Audio is not null)
                 {
                     var stream = await GetFileStream(client, message.Audio.FileId);
-                    var file = await client.GetFileAsync(message.Audio.FileId, token);
-                    builder.WithFile(Path.GetFileName(file.FilePath), stream);
+                    var file = await client.GetFile(message.Audio.FileId, token);
+                    builder.AddFile(Path.GetFileName(file.FilePath) ?? "audio.mp3", stream);
                 }
             }
 
             embed.WithColor(DiscordColor.Aquamarine);
-            await thread.SendMessageAsync(builder.WithEmbed(embed));
+            await thread.SendMessageAsync(builder.AddEmbed(embed));
         }
     }
 
@@ -384,7 +387,7 @@ public class Handler : IHandler, IServiceScope
     {
         var stream = new MemoryStream();
 
-        await client.GetInfoAndDownloadFileAsync(fileId, stream);
+        await client.GetInfoAndDownloadFile(fileId, stream);
         stream.Seek(0, SeekOrigin.Begin);
 
         return stream;

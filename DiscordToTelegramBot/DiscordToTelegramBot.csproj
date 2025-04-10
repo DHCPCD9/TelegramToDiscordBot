@@ -2,26 +2,26 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
 	    <RestoreAdditionalProjectSources>
           https://api.nuget.org/v3/index.json;
-          https://nuget.emzi0767.com/api/v3/index.json;
         </RestoreAdditionalProjectSources>
+	    <LangVersion>default</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="DSharpPlus" Version="4.3.0-nightly-01135" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.0-preview.4.22229.2" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.0-preview.4.22229.2">
+      <PackageReference Include="DSharpPlus" Version="5.0.0-nightly-02481" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         <PrivateAssets>all</PrivateAssets>
       </PackageReference>
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.0-preview.4.22229.2" />
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0-preview.4.22229.4" />
-      <PackageReference Include="SixLabors.ImageSharp" Version="2.1.1" />
-      <PackageReference Include="Telegram.Bot" Version="18.0.0-alpha.3" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.4" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
+      <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
+      <PackageReference Include="Telegram.Bot" Version="22.5.0-dev.24" />
       <PackageReference Include="Telegram.Bot.Extensions.Polling" Version="2.0.0-alpha.1" />
     </ItemGroup>
 

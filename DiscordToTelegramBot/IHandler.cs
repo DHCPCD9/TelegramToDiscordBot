@@ -16,7 +16,7 @@ namespace DiscordToTelegramBot
         
         public ITelegramBotClient TelegramBotClient { get; set; }
 
-        public Task HandleDiscordMessage(DiscordClient sender, MessageCreateEventArgs args);
+        public Task HandleDiscordMessage(DiscordClient sender, MessageCreatedEventArgs args);
         public Task HandleUpdateAsync(ITelegramBotClient client, Update update, CancellationToken token);
 
         public Task HandleError(ITelegramBotClient client, Exception exception, CancellationToken token);

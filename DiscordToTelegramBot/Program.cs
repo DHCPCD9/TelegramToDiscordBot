@@ -16,31 +16,32 @@ await using var services = new ServiceCollection()
 
 TelegramBotClient telegramClient = new TelegramBotClient(token: Environment.GetEnvironmentVariable("TG_TOKEN"));
 
-var client = new DiscordClient(new DiscordConfiguration
+var builder = DiscordClientBuilder.CreateDefault(Environment.GetEnvironmentVariable("DISCORD_TOKEN"),
+    DiscordIntents.AllUnprivileged);
+
+await using (var scope = services.CreateAsyncScope())
 {
-    Token = Environment.GetEnvironmentVariable("DISCORD_TOKEN"),
-    Intents = DiscordIntents.AllUnprivileged
-});
+    var service = scope.ServiceProvider.GetRequiredService<IHandler>();
+    service.TelegramBotClient = telegramClient;
 
 
-client.Ready += async (client, args) =>
-{
-    client.Logger.Log(LogLevel.Information, new EventId(999, "Telegram"), "Connecting telegram");
 
-    await using (var scope = services.CreateAsyncScope())
+    builder.ConfigureEventHandlers(b => b.HandleSessionCreated(async (client, args) =>
     {
-        var service = scope.ServiceProvider.GetRequiredService<IHandler>();
         service.DiscordClient = client;
-        service.TelegramBotClient = telegramClient;
+
+        client.Logger.Log(LogLevel.Information, new EventId(999, "Telegram"), "Connecting telegram");
+        
+        
+        var me = await telegramClient.GetMe();
         telegramClient.StartReceiving(service.AsyncUpdateHandler, service.HandleError, new ReceiverOptions { }, CancellationToken.None);
 
-        var me = await telegramClient.GetMeAsync();
-
-        client.MessageCreated += service.HandleDiscordMessage;
         client.Logger.Log(LogLevel.Information, new EventId(999, "Telegram"),"Telegram bot @{Username} ready to accept updates", me.Username);
-    }
-};
+    }).HandleMessageCreated(service.HandleDiscordMessage));
 
+}
+
+var client = builder.Build();
 await client.ConnectAsync();
 
 await Task.Delay(-1);
